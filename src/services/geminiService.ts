@@ -8,8 +8,27 @@ export interface GenerationResponse {
   hashtags: string[]
 }
 
+// Function to list available models (for debugging)
+export const listAvailableModels = async (): Promise<string[]> => {
+  try {
+    if (!import.meta.env.VITE_GEMINI_API_KEY) {
+      throw new Error('Gemini API key not configured')
+    }
+    
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${import.meta.env.VITE_GEMINI_API_KEY}`)
+    const data = await response.json()
+    
+    if (data.models) {
+      return data.models.map((model: any) => model.name)
+    }
+    return []
+  } catch (error) {
+    console.error('Error listing models:', error)
+    return []
+  }
+}
+
 export const generateCaptionAndHashtags = async (
-  videoFile: File,
   tone: string,
   context: string
 ): Promise<GenerationResponse> => {
@@ -18,7 +37,35 @@ export const generateCaptionAndHashtags = async (
       throw new Error('Gemini API key not configured')
     }
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' })
+    // Try different model names if one fails
+    let model
+    let modelName = ''
+    try {
+      model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+      modelName = 'gemini-1.5-flash'
+      console.log('Using model: gemini-1.5-flash')
+    } catch (error) {
+      try {
+        model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' })
+        modelName = 'gemini-1.5-pro'
+        console.log('Using model: gemini-1.5-pro')
+      } catch (error2) {
+        try {
+          model = genAI.getGenerativeModel({ model: 'gemini-pro' })
+          modelName = 'gemini-pro'
+          console.log('Using model: gemini-pro')
+        } catch (error3) {
+          // Try the most basic approach
+          try {
+            model = genAI.getGenerativeModel({ model: 'gemini-1.0-pro' })
+            modelName = 'gemini-1.0-pro'
+            console.log('Using model: gemini-1.0-pro')
+          } catch (error4) {
+            throw new Error('No compatible Gemini model found. Please check your API key and model availability.')
+          }
+        }
+      }
+    }
 
     // Create a comprehensive prompt for TikTok content
     const prompt = `
@@ -65,6 +112,18 @@ Make it engaging, authentic, and optimized for TikTok's algorithm.
 
   } catch (error) {
     console.error('Error generating content:', error)
+    
+    // Provide more specific error messages
+    if (error instanceof Error) {
+      if (error.message.includes('API key')) {
+        throw new Error('Invalid API key. Please check your Gemini API key configuration.')
+      } else if (error.message.includes('model')) {
+        throw new Error('Model not available. Please try again or check API status.')
+      } else if (error.message.includes('quota')) {
+        throw new Error('API quota exceeded. Please try again later.')
+      }
+    }
+    
     throw new Error('Failed to generate caption and hashtags. Please try again.')
   }
 }

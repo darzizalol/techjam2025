@@ -37,7 +37,7 @@ const CaptionGenerator: React.FC = () => {
 
     try {
       // Generate caption and hashtags using Gemini
-      const result = await generateCaptionAndHashtags(videoData.file, tone, context)
+      const result = await generateCaptionAndHashtags(tone, context)
       
       const newResult: GenerationResult = {
         caption: result.caption,
@@ -104,4 +104,5 @@ const CaptionGenerator: React.FC = () => {
 }
 
 export default CaptionGenerator
+
 

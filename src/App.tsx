@@ -1,4 +1,3 @@
-import React from 'react'
 import CaptionGenerator from './components/CaptionGenerator'
 import './App.css'
 
